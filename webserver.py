@@ -6,6 +6,9 @@ from sqlalchemy.orm import sessionmaker
 
 # Import flask components:
 from flask import Flask, render_template, url_for, request, redirect, flash
+# Session is a dictionary where we can store values for the longevity of
+# a user's session with our server:
+from flask import session as login_session
 # Create an instance of class Flask, which will be our WSGI application:
 app = Flask(__name__)
 
@@ -14,9 +17,24 @@ Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
+@app.route('/')
+@app.route('/login/')
+def login():
+	login_session['username'] = 'Adilbek'
+	return 'This page will be for logging in.'
+
+@app.route('/logout/')
+def logout():
+	del login_session['username']
+	return 'You are logged out.'
+
 @app.route('/periods/')
 def showPeriods():
-	return 'This page will show all my periods.'
+	if 'username' in login_session:
+		login_status = 'You are logged in as user %s.<br>' % login_session['username']
+	else:
+		login_status = 'You are not logged in.<br>'
+	return login_status + 'This page will show all my periods.'
 
 @app.route('/period/new/')
 def newPeriod():
@@ -47,6 +65,8 @@ def deleteBudget(period_id, budget_id):
 	return 'This page will be for deleting budget %s for period %s' % (budget_id, period_id)
 
 if __name__ == '__main__':
+	app.secret_key = 'super_secret_key'
+	# secret_key above is for session management
 	app.debug = True
 	# debug mode allows server to reload automatically after code change
 	app.run(host = '0.0.0.0', port = 8000)
