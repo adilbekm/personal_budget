@@ -12,29 +12,58 @@ from flask import session as login_session
 # Create an instance of class Flask, which will be our WSGI application:
 app = Flask(__name__)
 
+# Import Flask-Login extension needed for user management:
+from flask.ext.login import LoginManager, login_required, login_user, logout_user, current_user
+# Create instance of LoginManager class:
+# (The login manager contains the code that lets your application and 
+#  Flask-Login work together, such as how to load a user from an ID, 
+#  where to send users when they need to log in, and the like.)
+login_manager = LoginManager()
+login_manager.init_app(app)
+
 # Create engine and connect to DB:
 Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
-session = DBSession()
+db_session = DBSession()
 
-@app.route('/')
-@app.route('/login/')
+@login_manager.user_loader
+def load_user(user_id):
+	'''
+	Given user_id, return the corresponding user object if exists.
+	If doesn't exist, return 'None' (don't raise an exception).
+	'''
+	userObject = db_session.query(User).filter_by(id=user_id).one()
+	if userObject != []:
+		return userObject
+	return None
+
+@app.route('/login/', methods=['GET','POST'])
 def login():
-	login_session['username'] = 'Adilbek'
-	return 'This page will be for logging in.'
+	'''
+	For GET requests, display the login form. For POST requests, 
+	login the current user by processing the form. 
+	'''
+	user = db_session.query(User).filter_by(id=1).one()
+	user.authenticated = True
+	db_session.add(user)
+	db_session.commit()
+	login_user(user)
+	return redirect(url_for('showPeriods'))
 
 @app.route('/logout/')
+@login_required
 def logout():
-	del login_session['username']
+	user = current_user
+	user.authenticated = False
+	db_session.add(user)
+	db_session.commit()
+	logout_user()
 	return 'You are logged out.'
 
 @app.route('/periods/')
+@login_required
 def showPeriods():
-	if 'username' in login_session:
-		login_status = 'You are logged in as user %s.<br>' % login_session['username']
-	else:
-		login_status = 'You are not logged in.<br>'
-	return login_status + 'This page will show all my periods.'
+	return 'You are logged in.<br>This page will show all my periods.'
 
 @app.route('/period/new/')
 def newPeriod():
