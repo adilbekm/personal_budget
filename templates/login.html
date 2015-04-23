@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<body>
+	{% with messages = get_flashed_messages() %}
+	{% if messages %}
+	<div class='flash'>
+		{% for message in messages %}
+		{{ message }}<br>
+		{% endfor %}
+	</div>
+	{% endif %}
+	{% endwith %}
+
+	<form method='POST' action ='.'>
+	<label for='name'>Name</label>
+	<input type='text' name='name' size='30'>
+	<label for='name'>Password</label>
+	<input type='password' name='password' size='30'>
+	<input type='submit' value='Login'>
+	</form>
+
+</body>
+</html>
