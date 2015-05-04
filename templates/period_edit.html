@@ -26,17 +26,27 @@
 	</div>
 {% endif %}
 {% endwith %}
-<div id='containerCentered'>
+<div class='left_bar'>
+	<a href='{{url_for('newPeriod')}}'>Create New Period</a><br>
+	{% for item in periods %}
+	{% if item.id == period_id %}
+		<a id='currentPeriod' href='{{url_for('showBudget',period_id=item.id)}}'>{{item.name}}</a>
+	{% else %}
+		<a href='{{url_for('showBudget',period_id=item.id)}}'>{{item.name}}</a>
+	{% endif %}
+	{% endfor %}
+</div>
+<div class='main'>
+<div id='containerUncentered'>
 <ul id='labels'>
-	<li>Name:</li>
-	<li>Password:</li>
+	<li>Edit period name:</li>
 </ul>
 <div id='inputs'>
 	<form method='POST' action ='.'>
-	<input type='text' name='name' size='20' autofocus><br>
-	<input type='password' name='password' size='20'><br>
-	<input type='submit' value='Login'>
+	<input type='text' name='period_name' value='{{period_name}}' size='25' autofocus>
+	<input type='submit' value='Save'>
 	</form>
+</div>
 </div>
 </div>
 </body>
