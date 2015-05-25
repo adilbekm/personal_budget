@@ -2,6 +2,7 @@
 # IMPORT LIBRARIES # # # # # # # # # # # # # # # # # # # # # # # # #
 import os
 import sys
+from hashlib import sha256
 from sqlalchemy import create_engine
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship
@@ -32,12 +33,15 @@ class User(Base):
 	__tablename__ = 'user'
 	id = Column(Integer, primary_key=True)
 	name = Column(String(50), nullable=False)
-	password = Column(String(20), nullable=False)
+	password = Column(String(64), nullable=False)
+	salt = Column(String(45), nullable=False)
 	email = Column(String(100), nullable=False)
 	periods = relationship('Period', cascade='all, delete-orphan')
 
 	def check_password(self, password):
-		if self.password == password:
+		salted_password = self.salt + password
+		hashed_password = sha256(salted_password).hexdigest()
+		if self.password == hashed_password:
 			return True
 		else:
 			return False

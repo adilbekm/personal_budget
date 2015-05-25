@@ -1,5 +1,14 @@
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
+# Function 'urandom' is Python's cryptographically secure PRNG.
+# It will be used for generating salt (for password hashing).
+from os import urandom
+
+# Function 'sha256' is the cryptographix hash algorithm I will use
+# to hash passwords. The function produces 64-character output
+# (256-bit output -> 64 characters in HEX format).
+from hashlib import sha256
+
 # Needed to perform CRUD operations with the database:
 from database_setup import engine, Base, User, Period, Budget
 from sqlalchemy.orm import sessionmaker
@@ -109,8 +118,18 @@ def register():
 		if user:
 			flash('This email address is already registered')
 			return render_template('register.html')
-		# Validation passed. Register account and log the user into session:
-		newUser = User(name=name, email=email, password=password)
+		# Validation passed. Next, we will hash the password, register account,
+		# and finally log the user into session.
+		# 
+		# 1. Hash the password.
+		# 1.1. Create 32-byte (256-bit) long salt and convert to ASCII format.
+		# In ASCII, the salt will always be 45 characters long.
+		salt = urandom(32).encode('base64')
+		# 1.2. Prepend salt to password:
+		salted_password = salt + password
+		# 1.3. Hash the resulting string:
+		hashed_password = sha256(salted_password).hexdigest()
+		newUser = User(name=name, email=email, password=hashed_password, salt=salt)
 		session.add(newUser)
 		session.commit()
 		login_session['email'] = newUser.email
