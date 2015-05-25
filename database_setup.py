@@ -24,7 +24,7 @@ Base = declarative_base()
 # (most interestingly 'delete' operations) propagate to child items.
 # It's best to always set the 'cascade' option to 'all, delete-orphan'.
 # The 'all' is a synonym for save-update, merge, refresh-expire, expunge,
-# delete, and using it in conjunction with delete-orphan indicates that
+# delete, and using it in conjunction with 'delete-orphan' indicates that
 # the child object should follow along with its parent in all cases,
 # and be deleted once it is no longer associated with the parent
 
@@ -56,6 +56,17 @@ class Budget(Base):
 	name = Column(String(100), nullable=False)
 	budget_amount = Column(Integer)
 	actual_amount = Column(Integer)
+
+	@property
+	def serialize(self):
+		# returns object data in easily serializable format
+		return {
+			'item_name': self.name,
+			'budget_amount': self.budget_amount,
+			'actual_amount': self.actual_amount,
+		}
+
+
 
 # CONFIGURATION # # # # # # # # # # # # # # # # # # # # # # # # # #
 # To establish lazy connection to the database:

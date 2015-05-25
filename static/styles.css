@@ -26,7 +26,7 @@ a, a:link, a:visited, a:active {
     text-decoration: none;
     color: #0000ff;
 }
-a:hover {
+a:hover, .navigation a:hover {
     color: #ff0000;
 }
 .navigation {
@@ -36,9 +36,6 @@ a:hover {
 }
 .navigation li a {
     color: white;
-}
-.navigation li a:hover {
-    color: #ffdd00;
 }
 .flash {
     background: rgb(255,200,200); /* light red */

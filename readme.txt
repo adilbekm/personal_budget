@@ -4,9 +4,9 @@
 -- Make sure your Vagrant box is congigured to listen on needed port (8000)
    Check file VagrantFile for network configuration of your Vagrant box.
 
--- Install a flask extension called 'flask-login' if it is not yet installed.
-   To check whether installed, run 'pip freeze'. To install, run 
-   'pip install flask-login' (many need to put 'sudo' in front of command).
+-- (Not needed) Install a flask extension called 'flask-login' if it is not
+   yet installed. To check whether installed, run 'pip freeze'. To install,
+   run 'pip install flask-login' (many need to put 'sudo' in front of command).
 
 -- Create your database in psql: run 'CREATE DATABASE dbname;' command 
    You do not need to create tables yet.

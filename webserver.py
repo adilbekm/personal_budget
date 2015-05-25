@@ -8,6 +8,8 @@ from sqlalchemy.sql import func
 
 # Import flask components:
 from flask import Flask, render_template, url_for, request, redirect, flash
+# jsonify is a package that allows to format data for JSON end point
+from flask import jsonify
 # Session is a dictionary where we can store values for the longevity of
 # a user's session with our server:
 from flask import session as login_session
@@ -36,10 +38,10 @@ def login():
 		# Lookup the user by email and verify the password:
 		user = session.query(User).filter_by(name=name).first()
 		if user == None:
-			flash('User not found')
+			flash('Invalid user name or password')
 			return render_template('login.html')
 		if not user.check_password(password):
-			flash('Wrong password')
+			flash('Invalid user name or password')
 			return render_template('login.html')
 		# Validation passed. Log the user into session:
 		login_session['email'] = user.email
@@ -382,6 +384,12 @@ def deleteBudget(period_id, budget_id):
 			session.commit()
 			flash('Category "%s" was deleted' % budget_name)
 			return redirect(url_for('showBudget',period_id=period_id))
+
+# Making an API Endpoint (GET Request)
+@app.route('/JSON')
+def budgetItems():
+	items = session.query(Budget).all()
+	return jsonify(BudgetItems=[i.serialize for i in items])
 
 if __name__ == '__main__':
 	app.secret_key = 'super_secret_key'
