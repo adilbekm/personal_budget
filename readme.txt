@@ -16,26 +16,45 @@ time, you can see how well (or how bad) you are doing for the period and
 for each of the categories.
 
 ==========================================================================
-OVERVIEW
+HOW TO RUN THE APPLICATION
 ==========================================================================
 
-
-
--- Create a new directory and initialize for version control by running
-   'git init' command while inside the directory. 
+-- Dowload application files from GitHub:
+   https://github.com/adilbekm/personal_budget.git
 
 -- Make sure your Vagrant box is congigured to listen on needed port (8000)
    Check file VagrantFile for network configuration of your Vagrant box.
 
--- (Not needed) Install a flask extension called 'flask-login' if it is not
-   yet installed. To check whether installed, run 'pip freeze'. To install,
-   run 'pip install flask-login' (many need to put 'sudo' in front of command).
+-- run Vagrant and open console with commands:
+   vagrant up
+   vagrant ssh
 
--- Create your database in psql: run 'CREATE DATABASE dbname;' command 
-   You do not need to create tables yet.
+-- Create the psql database used by the application by running commands:
+   psql
+   CREATE DATABASE personalbudget;
+   \q
 
--- Create the database_setup.py file and run it, which will create all 
-   tables defined in the file. You may check those in psql.
+-- start the webserver by running command:
+   python webserver.py
 
--- Create the webserver.py file where you define function main() to be
-   run when the file is opened by python interpreter.
+==========================================================================
+HOW TO USE THE APPLICATION
+==========================================================================
+
+-- Open browser and navigate to:
+   http://localhost:8000
+
+-- To login with Google Plus, click on "Login" and click the "g+ Sign in"
+
+-- To login with a local application account, first register by clicking
+   "Register", and on all subsequent sign-ins click "Login" and then click
+   "Local Sign in".
+
+-- From this point, follow instructions provided by the application
+
+==========================================================================
+AUTHOR INFORMATION
+==========================================================================
+
+Name: Adilbek Madaminov
+Email: adilbekm@yahoo.com
