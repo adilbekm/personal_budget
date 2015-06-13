@@ -161,3 +161,19 @@ table, th, td {
     display: block;
     width: 245px;
 }
+#signInButton {
+    width: 114px;
+    height: 50px;
+    margin: auto;
+}
+#localSignInButton {
+    width: 114px;
+    height: 23px;
+    padding-top: 7px;
+    border-radius: 3px;
+    text-align: center;
+    background-color: rgb(85,125,255);
+    font-size: 0.9em;
+    color: white; /* applies to font color */
+    margin: auto;
+}

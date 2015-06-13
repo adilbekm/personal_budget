@@ -32,10 +32,10 @@ Base = declarative_base()
 class User(Base):
 	__tablename__ = 'user'
 	id = Column(Integer, primary_key=True)
-	name = Column(String(50), nullable=False)
+	name = Column(String(250), nullable=False)
 	password = Column(String(64), nullable=False)
 	salt = Column(String(45), nullable=False)
-	email = Column(String(100), nullable=False)
+	email = Column(String(250), nullable=False)
 	periods = relationship('Period', cascade='all, delete-orphan')
 
 	def check_password(self, password):
@@ -69,8 +69,6 @@ class Budget(Base):
 			'budget_amount': self.budget_amount,
 			'actual_amount': self.actual_amount,
 		}
-
-
 
 # CONFIGURATION # # # # # # # # # # # # # # # # # # # # # # # # # #
 # To establish lazy connection to the database:
