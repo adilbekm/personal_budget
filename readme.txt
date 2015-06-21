@@ -22,7 +22,7 @@ HOW TO RUN THE APPLICATION
 -- Dowload application files from GitHub:
    https://github.com/adilbekm/personal_budget.git
 
--- Make sure your Vagrant box is congigured to listen on needed port (8000)
+-- Make sure your Vagrant box is congigured to listen on port 8000.
    Check file VagrantFile for network configuration of your Vagrant box.
 
 -- run Vagrant and open console with commands:

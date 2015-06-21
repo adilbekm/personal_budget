@@ -14,6 +14,12 @@ from flask import make_response
 import requests
 CLIENT_ID = json.loads(open('client_secrets.json', 'r').read())['web']['client_id']
 
+# Import regular expression module (used for email validation):
+import re
+
+# 'wraps' helps a wrapped function to retain its attributes (__name__, __doc__, etc.)
+from functools import wraps
+
 # Function 'sha256' is the cryptographix hash algorithm I will use
 # to hash passwords. The function produces 64-character output
 # (256-bit output -> 64 characters in HEX format).
@@ -112,6 +118,11 @@ def gconnect():
 		return response
 	# All validations passed.
 	# Store the access token in the session.
+	# Side note: Project reviewer commented that it was great I am saving only the
+	# access token instead of entire credentials. Saving credentials directly would
+	# result in error "OAuth2Credential is not JSON Serializable". To avoid that,
+	# it is possible to save entire credentials using to_json method as follows:
+	# login_session['credentials'] = credentials.to_json()
 	login_session['access_token'] = credentials.access_token
 	login_session['gplus_id'] = gplus_id
 	# Get user info from Google server.
@@ -125,7 +136,6 @@ def gconnect():
 	user = session.query(User).filter_by(email=user_email).first()
 	if user == None:
 		# User doesn't exist yet, so register the user with a generic password.
-		# return render_template('register_google.html', user=user_name, email=user_email)
 		password = 'thGl34n*gklf'
 		salt = urandom(32).encode('base64')
 		# Prepend salt to password:
@@ -247,12 +257,15 @@ def register():
 	if not password == pwdconfirm:
 		flash('Password and confirmation don\'t match')
 		return render_template('register.html')
+	# Check if email is a valid email address (it has @ and . in that order):
+	if not re.match('[^@]+@[^@]+\.[^@]+',email):
+		flash('Invalid email address')
+		return render_template('register.html')
 	# Check if email already exists:
 	user = session.query(User).filter_by(email=email).first()
 	if user:
 		flash('This email address is already registered')
 		return render_template('register.html')
-	# User name is allowed to be non-unique, so don't check.
 	# Validations passed.
 	# Hash the password:
 	# Create 32-byte (256-bit) long salt and convert to ASCII format.
@@ -275,57 +288,36 @@ def register():
 	flash('Thank you for registering! You are now logged in as %s' % newUser.name)
 	return redirect(url_for('showPeriods'))
 
-@app.route('/register_google/', methods=['GET','POST'])
-def register_google(user, email):
-	if request.method == 'GET':
-		render_template('register_google.html')
-	# The request is POST. Get form data from the POST request,
-	# stripping any leading and trailing whitespaces,
-	# and validate all data:
-	password = request.form['password'].strip()
-	pwdconfirm = request.form['pwdconfirm'].strip()
-	# Check if all fields are non-empty; flash an error otherwise:
-	if not name or not email or not password or not pwdconfirm:
-		 flash('Please enter all fields')
-		 return render_template('register_google.html',user=user,email=email)
-	# Check if lengths are reasonable (between 2 and 250 chars):
-	if len(name)>250 or len(email)>250 or len(password)>250 or len(pwdconfirm)>250:
-		flash('Some values appear too long')
-		return render_template('register_google.html',user=user,email=email)
-	if len(name)<3 or len(email)<3 or len(password)<3 or len(pwdconfirm)<3:
-		flash('Some values appear too short')
-		return render_template('register_google.html',user=user,email=email)
-	# Check if the two password entries match:
-	if not password == pwdconfirm:
-		flash('Password and confirmation don\'t match')
-		return render_template('register_google.html',user=user,email=email)
-	# Check if email already exists:
-	user = session.query(User).filter_by(email=email).first()
-	if user:
-		flash('This email address is already registered')
-		return render_template('register_google.html',user=user,email=email)
-	# User name is allowed to be non-unique, so don't check.
-	# Validations passed.
-	# Hash the password:
-	# Create 32-byte (256-bit) long salt and convert to ASCII format.
-	# In ASCII, the salt will always be 45 characters long.
-	salt = urandom(32).encode('base64')
-	# Prepend salt to password:
-	salted_password = salt + password
-	# Hash the resulting string:
-	hashed_password = sha256(salted_password).hexdigest()
-	#
-	# Add user to database:
-	newUser = User(name=name, email=email, password=hashed_password, salt=salt)
-	session.add(newUser)
-	session.commit()
-	#
-	# Enter user's information into session
-	login_session['username'] = newUser.name
-	login_session['email'] = newUser.email
-	# Redirect to the 'periods' page:
-	flash('Thank you for registering! You are now logged in as %s' % newUser.name)
-	return
+def login_required(f):
+	'''This decorator function checks if the user is logged in and has authorization
+	   to accesss the requested resource. It assumes the function it wraps has up to
+	   two keyword arguments: period_id and budget_id. If those are passed, each
+	   is checked for validity. period_id is additionally checked to see if the user
+	   associated with the period is the same as the user requesting access to it.'''
+	@wraps(f)
+	def wrapper_function(**kwargs):
+		output = 'The page doesn\'t exist or you are not authorized to access it.'
+		if 'email' not in login_session:
+			# User is not signed in.
+			return output
+		user = session.query(User).filter_by(email=login_session['email']).first()
+		if user is None:
+			# A rare case when user is deleted while still in session.
+			return output
+		if 'period_id' in kwargs.keys():
+			period_id = kwargs['period_id']
+			period = session.query(Period).filter_by(id=period_id).first()
+			if period is None or user.id != period.user_id:
+				# The period doesn't exist or the user isn't allowed to access it.
+				return output
+		if 'budget_id' in kwargs.keys():
+			budget_id = kwargs['budget_id']
+			budget = session.query(Budget).filter_by(id=budget_id).first()
+			if budget is None:
+				# The budget doesn't exist.
+				return output
+		return f(**kwargs)
+	return wrapper_function
 
 @app.route('/')
 @app.route('/home/')
@@ -342,18 +334,10 @@ def showPeriods():
 	return render_template('home.html', items=periods, username=user.name)
 
 @app.route('/period/new/', methods=['GET','POST'])
+@login_required
 def newPeriod():
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
-	if user is None:
-		# This is a rare case when user is deleted while still in session.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
-	current_user = session.query(User).filter_by(email=login_session['email']).first()
-	periods = session.query(Period).filter_by(user_id=current_user.id).order_by(Period.id.desc())
+	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	if request.method == 'GET':
 		return render_template('period_new.html',periods=periods)
 	# Get data from POST request, stripping any leading/trailing white spaces:
@@ -370,27 +354,18 @@ def newPeriod():
 		flash('Period name appears too short - let\'s be more serious')
 		return render_template('period_new.html',periods=periods)
 	# Validation passed. Add period to the database:
-	current_user = session.query(User).filter_by(email=login_session['email']).first()
-	newPeriod = Period(name=period_name, user_id=current_user.id) 
+	newPeriod = Period(name=period_name, user_id=user.id) 
 	session.add(newPeriod)
 	session.commit()
 	flash('New period created')
 	return redirect(url_for('showBudget',period_id=newPeriod.id))
 
 @app.route('/period/<int:period_id>/budget/', methods=['GET'])
+@login_required
 def showBudget(period_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
-	current_user = session.query(User).filter_by(email=login_session['email']).first()
-	periods = session.query(Period).filter_by(user_id=current_user.id).\
+	periods = session.query(Period).filter_by(user_id=user.id).\
 		order_by(Period.id.desc()).all()
 	budgets = session.query(Budget).filter_by(period_id=period_id).order_by(Budget.id).all()
 	total_budget = session.query(func.sum(Budget.budget_amount)).\
@@ -403,17 +378,10 @@ def showBudget(period_id):
 		period=period)
 		
 @app.route('/period/<int:period_id>/edit/', methods=['GET','POST'])
+@login_required
 def editPeriod(period_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	period_name = period.name
 	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	if request.method == 'GET':
@@ -443,17 +411,10 @@ def editPeriod(period_id):
 	return redirect(url_for('showBudget',period_id=period_id))
 
 @app.route('/period/<int:period_id>/delete/', methods=['GET','POST'])
+@login_required
 def deletePeriod(period_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	period_name = period.name
 	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	if request.method == 'GET':
@@ -468,17 +429,10 @@ def deletePeriod(period_id):
 	return redirect(url_for('showPeriods',period_id=period_id))
 
 @app.route('/period/<int:period_id>/new/', methods=['GET','POST'])
+@login_required
 def newBudget(period_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	if request.method == 'GET':
 		return render_template('budget_new.html',periods=periods,period_id=period_id)
@@ -525,18 +479,11 @@ def newBudget(period_id):
 	return redirect(url_for('showBudget',period_id=period_id))
 
 @app.route('/period/<int:period_id>/budget/<int:budget_id>/edit', methods=['GET','POST'])
+@login_required
 def editBudget(period_id, budget_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
 	budget = session.query(Budget).filter_by(id=budget_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or budget is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	if request.method == 'GET':
 		return render_template('budget_edit.html',periods=periods,period_id=period_id,budget=budget)
@@ -584,18 +531,11 @@ def editBudget(period_id, budget_id):
 	return redirect(url_for('showBudget',period_id=period_id))
 
 @app.route('/period/<int:period_id>/budget/<int:budget_id>/delete', methods=['GET','POST'])
+@login_required
 def deleteBudget(period_id, budget_id):
-	if 'email' not in login_session:
-		# User is not signed in.
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	user = session.query(User).filter_by(email=login_session['email']).first()
 	period = session.query(Period).filter_by(id=period_id).first()
 	budget = session.query(Budget).filter_by(id=budget_id).first()
-	# Check if requested resource exists and user is authorized to access it.
-	if user is None or period is None or budget is None or user.id != period.user_id:
-		output = 'The page doesn\'t exist or you are not authorized to access it.'
-		return output
 	periods = session.query(Period).filter_by(user_id=user.id).order_by(Period.id.desc())
 	budget_name = budget.name
 	if request.method == 'GET':
